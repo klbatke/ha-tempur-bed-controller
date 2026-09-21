@@ -13,9 +13,10 @@ that move the bed without a person able to observe and stop it.
 
 ## Reporting a vulnerability
 
-Until a public release establishes a private reporting channel, do not include
-secrets, private addresses, packet captures, or personal data in public issue
-reports. Open a minimal public issue that requests a private contact channel.
+Use this repository's private vulnerability-reporting feature when it is
+available. Otherwise, do not include secrets, private addresses, packet
+captures, or personal data in a public issue; open only a minimal issue that
+requests a private contact channel.
 
 ## Supported versions
 

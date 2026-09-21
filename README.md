@@ -36,8 +36,18 @@ start as unknown. Set an explicit level before using a More or Less button.
 
 ## Installation
 
-This repository is not published yet. The audited public release will document
-HACS custom-repository installation here.
+1. In Home Assistant, open **HACS** and select **Integrations**.
+2. Open the three-dot menu and select **Custom repositories**.
+3. Add `https://github.com/klbatke/ha-tempur-bed-controller` with category
+   **Integration**.
+4. Search for **Tempur Bed Controller**, download it, and restart Home
+   Assistant when HACS prompts you.
+5. Go to **Settings > Devices & services > Add integration**, search for
+   **Tempur Bed Controller**, and enter the controller's local host or IP
+   address and UDP port.
+
+This is a HACS custom repository. It is not included in the default HACS
+catalog.
 
 ## Pilot test gate
 
