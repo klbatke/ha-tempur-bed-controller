@@ -1,0 +1,34 @@
+name: Validate integration quality
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  protocol_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Validate protocol tables
+        run: python3 -m unittest discover -s tests -v
+
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Validate Home Assistant integration metadata
+        run: >-
+          docker run --rm
+          -v "$GITHUB_WORKSPACE":/github/workspace
+          ghcr.io/home-assistant/hassfest@sha256:62d4e24948c64b0dd76c9597cbd12ebff53e11bb3b33fb5327aa3250fe626bfb
