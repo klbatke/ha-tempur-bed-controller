@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "name": "Device name",
+          "host": "Controller host or IP address",
+          "port": "UDP port"
+        }
+      }
+    }
+  }
+}
