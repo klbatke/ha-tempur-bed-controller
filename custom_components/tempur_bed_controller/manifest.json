@@ -8,5 +8,5 @@
   "iot_class": "assumed_state",
   "issue_tracker": "https://github.com/klbatke/ha-tempur-bed-controller/issues",
   "requirements": [],
-  "version": "0.1.1"
+  "version": "0.1.2"
 }

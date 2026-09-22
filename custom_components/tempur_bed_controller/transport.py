@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable
+from ipaddress import ip_address
 
-from .const import ACK_TIMEOUT_SECONDS
-from .transaction import ACTION_ACK, direct_action_datagrams
+from .const import ACK_ACTION, ACK_OPEN, ACK_TIMEOUT_SECONDS, OPEN_FRAME
+from .transaction import direct_action_datagrams
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,14 +21,14 @@ class _Protocol(asyncio.DatagramProtocol):
 
     def __init__(self) -> None:
         self.transport: asyncio.DatagramTransport | None = None
-        self.messages: asyncio.Queue[bytes] = asyncio.Queue()
+        self.messages: asyncio.Queue[tuple[bytes, tuple[str, int]]] = asyncio.Queue()
         self.error: Exception | None = None
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
         self.transport = transport  # type: ignore[assignment]
 
-    def datagram_received(self, data: bytes, _addr: tuple[str, int]) -> None:
-        self.messages.put_nowait(data)
+    def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
+        self.messages.put_nowait((data, addr))
 
     def error_received(self, exc: Exception) -> None:
         self.error = exc
@@ -43,6 +43,7 @@ class ControllerTransport:
         self._protocol: _Protocol | None = None
         self._transport: asyncio.DatagramTransport | None = None
         self._lock = asyncio.Lock()
+        self._session_open = False
 
     async def async_setup(self) -> None:
         """Create the local UDP endpoint without issuing a controller command."""
@@ -60,14 +61,15 @@ class ControllerTransport:
             self._transport.close()
             self._transport = None
             self._protocol = None
+        self._session_open = False
 
     async def async_send_action(self, frame: bytes, action_name: str) -> None:
-        """Send one observed direct action and require its ACK3 acknowledgement.
+        """Open one controller session, then send one captured direct action.
 
-        The original pilot prepended an unverified ``LOGICDATAOPEN`` datagram and
-        waited 500 ms before the action. Recent iPad captures instead show a
-        direct nine-byte action followed by ``ACK3``. Do not add a preamble,
-        delayed retry, or release frame here unless separately validated.
+        Captures show a ``FELOGICDATAOPEN`` datagram acknowledged by ``ACKFE``
+        before later direct actions. The opener is sent once per HA transport
+        lifetime, never before every action. No blind retry or synthetic 500 ms
+        delay is added: the captures do not validate either behavior.
         """
         if self._transport is None or self._protocol is None:
             raise ControllerTimeoutError("Controller transport is not initialized")
@@ -77,8 +79,15 @@ class ControllerTransport:
                 datagrams = direct_action_datagrams(frame)
             except ValueError as err:
                 raise ControllerTimeoutError(str(err)) from err
+            if not self._session_open:
+                await self._async_send_and_wait(OPEN_FRAME, ACK_OPEN, "session_open")
+                self._session_open = True
             for datagram in datagrams:
-                await self._async_send_and_wait(datagram, ACTION_ACK, action_name)
+                try:
+                    await self._async_send_and_wait(datagram, ACK_ACTION, action_name)
+                except ControllerTimeoutError:
+                    self._session_open = False
+                    raise
 
     def _drain_messages(self) -> None:
         assert self._protocol is not None
@@ -95,28 +104,69 @@ class ControllerTransport:
 
         loop = asyncio.get_running_loop()
         started = loop.time()
-        _LOGGER.debug("Sending direct controller action %s (%d bytes)", action_name, len(frame))
+        _LOGGER.debug(
+            "Sending controller datagram action=%s length=%d payload=%s",
+            action_name,
+            len(frame),
+            frame.hex(),
+        )
         self._transport.sendto(frame)
         deadline = started + ACK_TIMEOUT_SECONDS
         while True:
             remaining = deadline - loop.time()
             if remaining <= 0:
-                _LOGGER.warning("Controller action %s timed out waiting for ACK3", action_name)
-                raise ControllerTimeoutError("Controller acknowledgement timed out")
+                _LOGGER.warning(
+                    "Controller datagram action=%s timed out waiting for %s",
+                    action_name,
+                    expected.hex(),
+                )
+                raise ControllerTimeoutError(
+                    f"Controller acknowledgement timed out waiting for {expected.decode(errors='replace')}"
+                )
             try:
-                response = await asyncio.wait_for(self._protocol.messages.get(), remaining)
+                response, addr = await asyncio.wait_for(self._protocol.messages.get(), remaining)
             except TimeoutError as err:
-                _LOGGER.warning("Controller action %s timed out waiting for ACK3", action_name)
-                raise ControllerTimeoutError("Controller acknowledgement timed out") from err
+                _LOGGER.warning(
+                    "Controller datagram action=%s timed out waiting for %s",
+                    action_name,
+                    expected.hex(),
+                )
+                raise ControllerTimeoutError(
+                    f"Controller acknowledgement timed out waiting for {expected.decode(errors='replace')}"
+                ) from err
+            if not self._is_controller_source(addr):
+                _LOGGER.debug(
+                    "Ignoring response from unexpected source action=%s source=%s:%d",
+                    action_name,
+                    addr[0],
+                    addr[1],
+                )
+                continue
             if response.startswith(expected):
                 _LOGGER.debug(
-                    "Controller action %s acknowledged in %.1f ms",
+                    "Controller datagram action=%s acknowledged in %.1f ms response=%s source_port=%d",
                     action_name,
                     (loop.time() - started) * 1000,
+                    response.hex(),
+                    addr[1],
                 )
                 return
             _LOGGER.debug(
-                "Ignoring unexpected controller response while waiting for %s: %r",
+                "Ignoring unexpected controller response action=%s expected=%s received=%s source_port=%d",
                 action_name,
-                response[:4],
+                expected.hex(),
+                response.hex(),
+                addr[1],
             )
+
+    def _is_controller_source(self, addr: tuple[str, int]) -> bool:
+        """Accept only responses from the configured controller endpoint."""
+        if addr[1] != self._port:
+            return False
+        try:
+            return ip_address(addr[0]) == ip_address(self._host)
+        except ValueError:
+            # A hostname may resolve to an address whose text differs from the
+            # configured name. The connected UDP endpoint still restricts the
+            # peer; validate the port here and let the socket enforce the host.
+            return True

@@ -18,18 +18,25 @@ Developed with assistance from ChatGPT (OpenAI Codex).
 - Last-requested head and leg lift actions. These are deliberately not lift
   positions.
 
-## Protocol safety in v0.1.1
+## Protocol safety in v0.1.2
 
-This release removes the earlier unverified session opener and 500 ms delay.
-The implementation now sends one captured nine-byte controller action directly
-and requires its `ACK3` response before recording a requested state. It does
-not synthesize action repeats or trailing release messages: those behaviors
-were observed only for a particular iPad lift interaction and have not been
-validated for every control.
+This release performs the captured `FELOGICDATAOPEN` session initialization once
+per Home Assistant transport session, waits for `ACKFE`, and then sends one
+captured nine-byte controller action followed by its `ACK3` response. The
+session opener is not repeated before every action. A failed action invalidates
+the session for the next explicit action, but the integration does not blindly
+retry the failed command.
+
+The 500 ms value is not used as a wire-protocol delay. The captures show the
+iPad's repeated action frames at a much shorter, variable interval, and do not
+validate a universal 500 ms cadence. Actions remain one-shot; exact massage
+levels are selected by the number entities, while More/Less moves one requested
+level at a time.
 
 Enable debug logging for `custom_components.tempur_bed_controller` only during
-diagnosis. It records the action label, acknowledgement outcome, and elapsed
-time; it does not log controller addresses or raw command bytes.
+diagnosis. It records the action label, packet direction, packet length,
+capture-backed payload bytes, acknowledgement outcome, source port, and elapsed
+time. It does not log controller addresses.
 
 ## State safety
 
