@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.4
+
+- Add a diagnostic **Reconnect Controller** button that reinitializes the
+  capture-backed session without sending a bed movement or massage action.
+- Keep timeout recovery safe: a timed-out action is never resent automatically;
+  the session is invalidated and the next explicit action reopens it.
+- Add regression coverage for acknowledgement prefixes and controller endpoint
+  validation.
+
 ## 0.1.3
 
 - Add the capture-derived 10 ms settling interval after `ACKFE` and before the

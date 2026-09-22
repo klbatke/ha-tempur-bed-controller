@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from ipaddress import ip_address
 
 from .const import (
     ACK_ACTION,
@@ -13,7 +12,11 @@ from .const import (
     OPEN_FRAME,
     SESSION_ACTION_SETTLE_SECONDS,
 )
-from .transaction import direct_action_datagrams
+from .transaction import (
+    acknowledgement_matches,
+    controller_source_matches,
+    direct_action_datagrams,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -88,19 +91,33 @@ class ControllerTransport:
             except ValueError as err:
                 raise ControllerTimeoutError(str(err)) from err
             if not self._session_open:
-                await self._async_send_and_wait(OPEN_FRAME, ACK_OPEN, "session_open")
-                self._session_open = True
-                _LOGGER.debug(
-                    "Controller session acknowledged; waiting %.1f ms before first action",
-                    SESSION_ACTION_SETTLE_SECONDS * 1000,
-                )
-                await asyncio.sleep(SESSION_ACTION_SETTLE_SECONDS)
+                await self._async_open_session()
             for datagram in datagrams:
                 try:
                     await self._async_send_and_wait(datagram, ACK_ACTION, action_name)
                 except ControllerTimeoutError:
                     self._session_open = False
                     raise
+
+    async def async_reinitialize_session(self) -> None:
+        """Safely re-open the controller session without sending a bed action."""
+        if self._transport is None or self._protocol is None:
+            raise ControllerTimeoutError("Controller transport is not initialized")
+        async with self._lock:
+            self._session_open = False
+            self._drain_messages()
+            await self._async_open_session()
+
+    async def _async_open_session(self) -> None:
+        """Send the one-shot opener and wait for its acknowledgement."""
+        self._session_open = False
+        await self._async_send_and_wait(OPEN_FRAME, ACK_OPEN, "session_open")
+        self._session_open = True
+        _LOGGER.debug(
+            "Controller session acknowledged; waiting %.1f ms before first action",
+            SESSION_ACTION_SETTLE_SECONDS * 1000,
+        )
+        await asyncio.sleep(SESSION_ACTION_SETTLE_SECONDS)
 
     def _drain_messages(self) -> None:
         assert self._protocol is not None
@@ -147,7 +164,7 @@ class ControllerTransport:
                 raise ControllerTimeoutError(
                     f"Controller acknowledgement timed out waiting for {expected.decode(errors='replace')}"
                 ) from err
-            if not self._is_controller_source(addr):
+            if not controller_source_matches(self._host, self._port, addr):
                 _LOGGER.debug(
                     "Ignoring response from unexpected source action=%s source=%s:%d",
                     action_name,
@@ -155,7 +172,7 @@ class ControllerTransport:
                     addr[1],
                 )
                 continue
-            if response.startswith(expected):
+            if acknowledgement_matches(response, expected):
                 _LOGGER.debug(
                     "Controller datagram action=%s acknowledged in %.1f ms response=%s source_port=%d",
                     action_name,
@@ -171,15 +188,3 @@ class ControllerTransport:
                 response.hex(),
                 addr[1],
             )
-
-    def _is_controller_source(self, addr: tuple[str, int]) -> bool:
-        """Accept only responses from the configured controller endpoint."""
-        if addr[1] != self._port:
-            return False
-        try:
-            return ip_address(addr[0]) == ip_address(self._host)
-        except ValueError:
-            # A hostname may resolve to an address whose text differs from the
-            # configured name. The connected UDP endpoint still restricts the
-            # peer; validate the port here and let the socket enforce the host.
-            return True

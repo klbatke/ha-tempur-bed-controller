@@ -44,6 +44,14 @@ class BedCoordinator:
     async def async_close(self) -> None:
         await self.transport.async_close()
 
+    async def async_reinitialize_session(self) -> None:
+        """Re-open the controller session without issuing a bed action."""
+        async with self._action_lock:
+            try:
+                await self.transport.async_reinitialize_session()
+            except ControllerTimeoutError as err:
+                raise HomeAssistantError(str(err)) from err
+
     def async_add_listener(self, listener: Callable[[], None]) -> Callable[[], None]:
         self._listeners.append(listener)
 

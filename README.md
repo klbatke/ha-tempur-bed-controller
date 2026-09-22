@@ -18,7 +18,7 @@ Developed with assistance from ChatGPT (OpenAI Codex).
 - Last-requested head and leg lift actions. These are deliberately not lift
   positions.
 
-## Protocol safety in v0.1.3
+## Protocol safety in v0.1.4
 
 This release performs the captured `FELOGICDATAOPEN` session initialization once
 per Home Assistant transport session, waits for `ACKFE`, and then sends one
@@ -35,6 +35,13 @@ iPad's repeated action frames at a much shorter, variable interval, and do not
 validate a universal 500 ms cadence. Actions remain one-shot; exact massage
 levels are selected by the number entities, while More/Less moves one requested
 level at a time.
+
+If the bed controller is rebooted while Home Assistant remains running, use the
+diagnostic **Reconnect Controller** button before sending another action. It
+only performs the capture-backed session opener and waits for `ACKFE`; it does
+not move the bed. If an action times out, the integration invalidates the
+session and does not resend that physical action. The next explicit action will
+reinitialize the session first.
 
 Enable debug logging for `custom_components.tempur_bed_controller` only during
 diagnosis. It records the action label, packet direction, packet length,

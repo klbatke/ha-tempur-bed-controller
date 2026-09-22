@@ -21,6 +21,8 @@ ACTION_ACK = TRANSACTION["ACTION_ACK"]
 OPEN_FRAME = TRANSACTION["OPEN_FRAME"]
 OPEN_ACK = TRANSACTION["OPEN_ACK"]
 session_open_datagram = TRANSACTION["session_open_datagram"]
+acknowledgement_matches = TRANSACTION["acknowledgement_matches"]
+controller_source_matches = TRANSACTION["controller_source_matches"]
 direct_action_datagrams = TRANSACTION["direct_action_datagrams"]
 SESSION_ACTION_SETTLE_SECONDS = TRANSACTION["SESSION_ACTION_SETTLE_SECONDS"]
 
@@ -47,6 +49,15 @@ class TestMassageProtocol(unittest.TestCase):
         frame = bytes.fromhex("3305321894530005c2")
         self.assertEqual(direct_action_datagrams(frame), (frame,))
         self.assertEqual(ACTION_ACK, b"ACK3")
+
+    def test_acknowledgement_matching_uses_the_expected_prefix(self) -> None:
+        self.assertTrue(acknowledgement_matches(b"ACK3controller-data", ACTION_ACK))
+        self.assertFalse(acknowledgement_matches(b"ACK\xfe", ACTION_ACK))
+
+    def test_controller_source_matching_rejects_wrong_endpoint(self) -> None:
+        self.assertTrue(controller_source_matches("192.168.1.242", 50007, ("192.168.1.242", 50007)))
+        self.assertFalse(controller_source_matches("192.168.1.242", 50007, ("192.168.1.243", 50007)))
+        self.assertFalse(controller_source_matches("192.168.1.242", 50007, ("192.168.1.242", 50008)))
 
     def test_direct_transaction_rejects_non_action_datagrams(self) -> None:
         with self.assertRaises(ValueError):

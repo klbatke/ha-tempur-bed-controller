@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -27,6 +28,12 @@ BUTTONS = (
     *(TempurButtonDescription(key=f"massage_{zone}_{direction}", name=f"{zone.title()} Massage {direction.title()}", icon="mdi:plus-minus") for zone in ("head", "lumbar", "leg") for direction in ("more", "less")),
     *(TempurButtonDescription(key=f"mode_{value}", name=f"Massage Mode {value}", icon="mdi:wave") for value in ("1", "2", "3", "4")),
     TempurButtonDescription(key="massage_stop", name="Massage Stop", icon="mdi:stop-circle"),
+    TempurButtonDescription(
+        key="reinitialize_session",
+        name="Reconnect Controller",
+        icon="mdi:connection",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
 )
 
 
@@ -51,4 +58,7 @@ class TempurButton(ButtonEntity):
         self._attr_device_info = coordinator.device_info
 
     async def async_press(self) -> None:
+        if self.entity_description.key == "reinitialize_session":
+            await self.coordinator.async_reinitialize_session()
+            return
         await self.coordinator.async_press(self.entity_description.key)
