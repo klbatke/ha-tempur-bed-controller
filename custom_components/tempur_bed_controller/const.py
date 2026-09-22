@@ -11,6 +11,7 @@ from .frames import (
     MASSAGE_STOP,
     MEMORY_ACTIONS,
 )
+from .transaction import SESSION_ACTION_SETTLE_SECONDS
 
 DOMAIN = "tempur_bed_controller"
 DEFAULT_NAME = "Bed Controller"
