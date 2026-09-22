@@ -35,7 +35,6 @@ iPad's repeated action frames at a much shorter, variable interval, and do not
 validate a universal 500 ms cadence. Actions remain one-shot; exact massage
 levels are selected by the number entities, while More/Less moves one requested
 level at a time.
-
 If the bed controller is rebooted while Home Assistant remains running, use the
 diagnostic **Reconnect Controller** button before sending another action. It
 only performs the capture-backed session opener and waits for `ACKFE`; it does

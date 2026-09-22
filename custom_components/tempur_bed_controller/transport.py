@@ -98,7 +98,6 @@ class ControllerTransport:
                 except ControllerTimeoutError:
                     self._session_open = False
                     raise
-
     async def async_reinitialize_session(self) -> None:
         """Safely re-open the controller session without sending a bed action."""
         if self._transport is None or self._protocol is None:
@@ -188,3 +187,15 @@ class ControllerTransport:
                 response.hex(),
                 addr[1],
             )
+
+    def _is_controller_source(self, addr: tuple[str, int]) -> bool:
+        """Accept only responses from the configured controller endpoint."""
+        if addr[1] != self._port:
+            return False
+        try:
+            return ip_address(addr[0]) == ip_address(self._host)
+        except ValueError:
+            # A hostname may resolve to an address whose text differs from the
+            # configured name. The connected UDP endpoint still restricts the
+            # peer; validate the port here and let the socket enforce the host.
+            return True
