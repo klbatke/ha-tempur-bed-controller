@@ -1,0 +1,54 @@
+name: Publish v0.1.2 release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-v0.1.2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.event.before == '2d22920bfd388b0b4cc3c4e8e0cef7e4aca52a79'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = "v0.1.2";
+            try {
+              await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag
+              });
+              core.info("Release already exists; nothing to do.");
+              return;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              target_commitish: "2d22920bfd388b0b4cc3c4e8e0cef7e4aca52a79",
+              name: "v0.1.2 — Session Initialization Repair",
+              body: [
+                "Restores the capture-backed controller session initialization.",
+                "",
+                "- Sends the observed FELOGICDATAOPEN opener once per Home Assistant transport session.",
+                "- Waits for ACKFE before sending a direct action and requires ACK3.",
+                "- Invalidates the session after an acknowledgement timeout without blind retries.",
+                "- Adds packet-level diagnostic logging and regression coverage.",
+                "- Does not add an unverified 500 ms wire delay or automatic action repetition.",
+                "",
+                "This remains pilot software. Do not use for safety-critical positioning."
+              ].join("\n"),
+              draft: false,
+              prerelease: false
+            });
