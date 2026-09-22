@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3
+
+- Add the capture-derived 10 ms settling interval after `ACKFE` and before the
+  first direct action in a controller session.
+- Keep the session opener one-shot and invalidate the session after an action
+  acknowledgement timeout.
+- Add regression coverage preventing the 500 ms repeat interval from being
+  confused with the opener-to-action settling interval.
+
 ## 0.1.1
 
 - Remove the unverified `LOGICDATAOPEN` preamble and 500 ms delay.

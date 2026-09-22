@@ -18,14 +18,17 @@ Developed with assistance from ChatGPT (OpenAI Codex).
 - Last-requested head and leg lift actions. These are deliberately not lift
   positions.
 
-## Protocol safety in v0.1.2
+## Protocol safety in v0.1.3
 
 This release performs the captured `FELOGICDATAOPEN` session initialization once
 per Home Assistant transport session, waits for `ACKFE`, and then sends one
 captured nine-byte controller action followed by its `ACK3` response. The
 session opener is not repeated before every action. A failed action invalidates
 the session for the next explicit action, but the integration does not blindly
-retry the failed command.
+retry the failed command. After `ACKFE`, the integration waits 10 ms before the
+first direct action. The supplied iPad captures showed 4.6–7.0 ms in that
+position; the small margin addresses the observed first-action failure without
+inventing a 500 ms protocol delay.
 
 The 500 ms value is not used as a wire-protocol delay. The captures show the
 iPad's repeated action frames at a much shorter, variable interval, and do not

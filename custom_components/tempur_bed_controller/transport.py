@@ -6,7 +6,13 @@ import asyncio
 import logging
 from ipaddress import ip_address
 
-from .const import ACK_ACTION, ACK_OPEN, ACK_TIMEOUT_SECONDS, OPEN_FRAME
+from .const import (
+    ACK_ACTION,
+    ACK_OPEN,
+    ACK_TIMEOUT_SECONDS,
+    OPEN_FRAME,
+    SESSION_ACTION_SETTLE_SECONDS,
+)
 from .transaction import direct_action_datagrams
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,8 +74,10 @@ class ControllerTransport:
 
         Captures show a ``FELOGICDATAOPEN`` datagram acknowledged by ``ACKFE``
         before later direct actions. The opener is sent once per HA transport
-        lifetime, never before every action. No blind retry or synthetic 500 ms
-        delay is added: the captures do not validate either behavior.
+        lifetime, never before every action. The captured iPad interval from
+        ``ACKFE`` to the first action was 4.6-7.0 ms, so this integration waits
+        10 ms. This is separate from the 500 ms interval between repeated
+        button presses and does not synthesize repeats.
         """
         if self._transport is None or self._protocol is None:
             raise ControllerTimeoutError("Controller transport is not initialized")
@@ -82,6 +90,11 @@ class ControllerTransport:
             if not self._session_open:
                 await self._async_send_and_wait(OPEN_FRAME, ACK_OPEN, "session_open")
                 self._session_open = True
+                _LOGGER.debug(
+                    "Controller session acknowledged; waiting %.1f ms before first action",
+                    SESSION_ACTION_SETTLE_SECONDS * 1000,
+                )
+                await asyncio.sleep(SESSION_ACTION_SETTLE_SECONDS)
             for datagram in datagrams:
                 try:
                     await self._async_send_and_wait(datagram, ACK_ACTION, action_name)

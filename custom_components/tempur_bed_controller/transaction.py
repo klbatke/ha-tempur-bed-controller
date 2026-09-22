@@ -6,6 +6,9 @@ ACTION_ACK = b"ACK3"
 OPEN_FRAME = bytes.fromhex("FE4C4F474943444154414F50454E")
 OPEN_ACK = b"ACK\xfe"
 ACTION_FRAME_LENGTH = 9
+# The iPad traces show 4.6-7.0 ms between ACKFE and the first action.
+# This is separate from the 500 ms interval between repeated button presses.
+SESSION_ACTION_SETTLE_SECONDS = 0.010
 
 
 def session_open_datagram() -> bytes:

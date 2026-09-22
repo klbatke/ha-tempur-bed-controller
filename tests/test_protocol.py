@@ -22,6 +22,7 @@ OPEN_FRAME = TRANSACTION["OPEN_FRAME"]
 OPEN_ACK = TRANSACTION["OPEN_ACK"]
 session_open_datagram = TRANSACTION["session_open_datagram"]
 direct_action_datagrams = TRANSACTION["direct_action_datagrams"]
+SESSION_ACTION_SETTLE_SECONDS = TRANSACTION["SESSION_ACTION_SETTLE_SECONDS"]
 
 
 def massage_level_frame(zone: str, level: int) -> bytes:
@@ -37,6 +38,10 @@ class TestMassageProtocol(unittest.TestCase):
         self.assertEqual(session_open_datagram(), bytes.fromhex("fe4c4f474943444154414f50454e"))
         self.assertEqual(OPEN_FRAME, session_open_datagram())
         self.assertEqual(OPEN_ACK, b"ACK\xfe")
+
+    def test_session_settle_interval_is_short_and_capture_derived(self) -> None:
+        self.assertGreaterEqual(SESSION_ACTION_SETTLE_SECONDS, 0.005)
+        self.assertLess(SESSION_ACTION_SETTLE_SECONDS, 0.050)
 
     def test_direct_transaction_is_one_captured_action_and_ack3(self) -> None:
         frame = bytes.fromhex("3305321894530005c2")
