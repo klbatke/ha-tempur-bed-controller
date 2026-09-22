@@ -14,6 +14,11 @@ LIFT_ACTIONS = FRAMES["LIFT_ACTIONS"]
 MEMORY_ACTIONS = FRAMES["MEMORY_ACTIONS"]
 MASSAGE_MODE_ACTIONS = FRAMES["MASSAGE_MODE_ACTIONS"]
 MASSAGE_STOP = FRAMES["MASSAGE_STOP"]
+TRANSACTION = runpy.run_path(
+    Path(__file__).parents[1] / "custom_components" / "tempur_bed_controller" / "transaction.py"
+)
+ACTION_ACK = TRANSACTION["ACTION_ACK"]
+direct_action_datagrams = TRANSACTION["direct_action_datagrams"]
 
 
 def massage_level_frame(zone: str, level: int) -> bytes:
@@ -25,6 +30,15 @@ def massage_level_frame(zone: str, level: int) -> bytes:
 
 
 class TestMassageProtocol(unittest.TestCase):
+    def test_direct_transaction_is_one_captured_action_and_ack3(self) -> None:
+        frame = bytes.fromhex("3305321894530005c2")
+        self.assertEqual(direct_action_datagrams(frame), (frame,))
+        self.assertEqual(ACTION_ACK, b"ACK3")
+
+    def test_direct_transaction_rejects_non_action_datagrams(self) -> None:
+        with self.assertRaises(ValueError):
+            direct_action_datagrams(b"LOGICDATAOPEN")
+
     def test_every_zone_has_eleven_complete_frames(self) -> None:
         for zone, frames in MASSAGE_LEVEL_ACTIONS.items():
             with self.subTest(zone=zone):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from homeassistant.components.button import ButtonEntity
+from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -13,10 +13,8 @@ from .coordinator import BedCoordinator
 
 
 @dataclass(frozen=True, kw_only=True)
-class TempurButtonDescription:
-    key: str
-    name: str
-    icon: str
+class TempurButtonDescription(ButtonEntityDescription):
+    """Description for one physical controller action."""
 
 
 BUTTONS = (
@@ -50,8 +48,6 @@ class TempurButton(ButtonEntity):
         self.coordinator = coordinator
         self.entity_description = description
         self._attr_unique_id = f"{coordinator.entry_id}_{description.key}"
-        self._attr_name = description.name
-        self._attr_icon = description.icon
         self._attr_device_info = coordinator.device_info
 
     async def async_press(self) -> None:

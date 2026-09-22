@@ -57,21 +57,21 @@ class BedCoordinator:
         async with self._action_lock:
             try:
                 if key in LIFT_ACTIONS:
-                    await self.transport.async_send_action(LIFT_ACTIONS[key])
+                    await self.transport.async_send_action(LIFT_ACTIONS[key], key)
                     if key == "flat":
                         self.last_lift_actions = {"head": "flat", "leg": "flat"}
                     else:
                         zone, _direction = key.split("_", maxsplit=1)
                         self.last_lift_actions[zone] = key
                 elif key in MEMORY_ACTIONS:
-                    await self.transport.async_send_action(MEMORY_ACTIONS[key])
+                    await self.transport.async_send_action(MEMORY_ACTIONS[key], f"memory_{key}")
                     self.last_memory = key
                 elif key.startswith("mode_") and key.removeprefix("mode_") in MASSAGE_MODE_ACTIONS:
                     mode = key.removeprefix("mode_")
-                    await self.transport.async_send_action(MASSAGE_MODE_ACTIONS[mode])
+                    await self.transport.async_send_action(MASSAGE_MODE_ACTIONS[mode], f"massage_mode_{mode}")
                     self.last_massage_mode = mode
                 elif key == "massage_stop":
-                    await self.transport.async_send_action(MASSAGE_STOP)
+                    await self.transport.async_send_action(MASSAGE_STOP, "massage_stop")
                     self.last_massage_mode = None
                 elif key.startswith("massage_") and key.endswith(("_more", "_less")):
                     _, zone, direction = key.split("_")
@@ -90,7 +90,9 @@ class BedCoordinator:
 
     async def _async_set_massage_level(self, zone: str, level: int) -> None:
         try:
-            await self.transport.async_send_action(massage_level_frame(zone, level))
+            await self.transport.async_send_action(
+                massage_level_frame(zone, level), f"massage_{zone}_level_{level}"
+            )
         except (ControllerTimeoutError, ValueError) as err:
             raise HomeAssistantError(str(err)) from err
         self.massage_levels[zone] = level

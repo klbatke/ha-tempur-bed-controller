@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Remove the unverified `LOGICDATAOPEN` preamble and 500 ms delay.
+- Send only an observed direct nine-byte command and require `ACK3`.
+- Repair the button entity description so all 20 action buttons can load.
+- Add transport diagnostics without recording addresses or raw command bytes.
+
 ## 0.1.0 - 2026-09-21
 
 Initial public pilot release.
