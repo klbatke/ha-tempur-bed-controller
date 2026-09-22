@@ -1,6 +1,9 @@
 name: Validate integration quality
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
