@@ -1,0 +1,54 @@
+name: Publish v0.1.3 release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-v0.1.3.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.event.before == '7d8ac35429d8208537acd560c5168c137fd41aea'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = "v0.1.3";
+            try {
+              await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag
+              });
+              core.info("Release already exists; nothing to do.");
+              return;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              target_commitish: "7d8ac35429d8208537acd560c5168c137fd41aea",
+              name: "v0.1.3 — Session Settling Repair",
+              body: [
+                "Adds the capture-derived controller session settling interval.",
+                "",
+                "- Waits 10 ms after ACKFE before the first direct action.",
+                "- Keeps the session opener one-shot per transport session.",
+                "- Invalidates the session after an action acknowledgement timeout.",
+                "- Adds timing regression coverage and diagnostic logging.",
+                "- Does not add a synthetic 500 ms wire delay or automatic repeats.",
+                "",
+                "This remains pilot software. Do not use for safety-critical positioning."
+              ].join("\n"),
+              draft: false,
+              prerelease: false
+            });
