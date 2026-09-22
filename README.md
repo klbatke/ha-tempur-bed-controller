@@ -18,6 +18,19 @@ Developed with assistance from ChatGPT (OpenAI Codex).
 - Last-requested head and leg lift actions. These are deliberately not lift
   positions.
 
+## Protocol safety in v0.1.1
+
+This release removes the earlier unverified session opener and 500 ms delay.
+The implementation now sends one captured nine-byte controller action directly
+and requires its `ACK3` response before recording a requested state. It does
+not synthesize action repeats or trailing release messages: those behaviors
+were observed only for a particular iPad lift interaction and have not been
+validated for every control.
+
+Enable debug logging for `custom_components.tempur_bed_controller` only during
+diagnosis. It records the action label, acknowledgement outcome, and elapsed
+time; it does not log controller addresses or raw command bytes.
+
 ## State safety
 
 The observed controller protocol acknowledges commands but does not provide a
