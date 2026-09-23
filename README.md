@@ -18,7 +18,7 @@ Developed with assistance from ChatGPT (OpenAI Codex).
 - Last-requested head and leg lift actions. These are deliberately not lift
   positions.
 
-## Protocol safety in v0.1.6
+## Protocol and massage safety in v0.1.7
 
 This release performs the captured `FELOGICDATAOPEN` session initialization once
 per live controller session, waits for `ACKFE`, and then sends one captured
@@ -66,8 +66,21 @@ query or measured 0–10 mapping. The pilot therefore cannot honestly expose a
 current or estimated lift level.
 
 Changing the bed from a remote, an iPad, or another system can make that
-requested state stale. After Home Assistant restarts, requested massage levels
-start as unknown. Set an explicit level before using a More or Less button.
+requested state stale. The controller has no validated massage-state query.
+To prevent a restart from leaving the integration with an unusable unknown
+level, every integration startup sends one **Massage Stop** through the normal
+session and acknowledgement flow. Only after its `ACK3` reply does Home
+Assistant expose Head, Lumbar, and Leg Requested Intensity as level `0` and
+enable massage modes and More/Less controls. If that Stop is not confirmed,
+massage starts and changes remain unavailable and **Massage Safety State**
+shows `stop_not_confirmed`; the integration never claims that massage stopped.
+
+After any acknowledged HA-issued active massage action (a mode or requested
+level above zero), Home Assistant resets a 30-minute safety timer. On expiry it
+sends one Massage Stop through the same serialized, 500 ms-paced transaction
+queue. A manual Stop cancels the timer. The timer cannot observe remote- or
+iPad-only massage activity; a Home Assistant restart is the supported way to
+re-establish the known stopped baseline after using another controller.
 
 ## Installation
 

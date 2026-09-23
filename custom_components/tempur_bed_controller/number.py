@@ -45,6 +45,11 @@ class TempurMassageIntensity(NumberEntity):
         return self.coordinator.massage_levels[self.zone]
 
     @property
+    def available(self) -> bool:
+        """Avoid exposing an unknown level while Stop is unconfirmed."""
+        return self.coordinator.massage_controls_available
+
+    @property
     def extra_state_attributes(self) -> dict[str, str]:
         return {"state_meaning": "last_requested; physical state is not read from the controller"}
 

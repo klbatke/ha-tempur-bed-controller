@@ -14,10 +14,11 @@ type TempurConfigEntry = ConfigEntry[BedCoordinator]
 async def async_setup_entry(hass: HomeAssistant, entry: TempurConfigEntry) -> bool:
     """Set up Tempur Bed Controller from a config entry."""
     coordinator = BedCoordinator(
-        entry.data["host"], entry.data["port"], entry.title, entry.entry_id
+        hass, entry.data["host"], entry.data["port"], entry.title, entry.entry_id
     )
     await coordinator.async_setup()
     entry.runtime_data = coordinator
+    await coordinator.async_initialize_massage_safety()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

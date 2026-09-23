@@ -57,6 +57,21 @@ class TempurButton(ButtonEntity):
         self._attr_unique_id = f"{coordinator.entry_id}_{description.key}"
         self._attr_device_info = coordinator.device_info
 
+    async def async_added_to_hass(self) -> None:
+        """Refresh action availability when massage resynchronization completes."""
+        await super().async_added_to_hass()
+        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
+
+    @property
+    def available(self) -> bool:
+        """Block massage starts/changes until an acknowledged Stop establishes zero."""
+        key = self.entity_description.key
+        if key == "massage_stop":
+            return True
+        if key.startswith("massage_") or key.startswith("mode_"):
+            return self.coordinator.massage_controls_available
+        return True
+
     async def async_press(self) -> None:
         if self.entity_description.key == "reinitialize_session":
             await self.coordinator.async_reinitialize_session()

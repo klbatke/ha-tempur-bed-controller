@@ -27,6 +27,7 @@ direct_action_datagrams = TRANSACTION["direct_action_datagrams"]
 SESSION_ACTION_SETTLE_SECONDS = TRANSACTION["SESSION_ACTION_SETTLE_SECONDS"]
 SESSION_IDLE_REOPEN_SECONDS = TRANSACTION["SESSION_IDLE_REOPEN_SECONDS"]
 REPEATED_ACTION_INTERVAL_SECONDS = TRANSACTION["REPEATED_ACTION_INTERVAL_SECONDS"]
+MASSAGE_AUTO_STOP_SECONDS = TRANSACTION["MASSAGE_AUTO_STOP_SECONDS"]
 SESSION_OPEN_MAX_ATTEMPTS = TRANSACTION["SESSION_OPEN_MAX_ATTEMPTS"]
 session_open_retry_delay = TRANSACTION["session_open_retry_delay"]
 session_requires_reopen = TRANSACTION["session_requires_reopen"]
@@ -65,6 +66,9 @@ class TestMassageProtocol(unittest.TestCase):
 
     def test_repeated_action_interval_is_a_half_second_post_ack_holdoff(self) -> None:
         self.assertEqual(REPEATED_ACTION_INTERVAL_SECONDS, 0.500)
+
+    def test_massage_safety_interval_is_thirty_minutes(self) -> None:
+        self.assertEqual(MASSAGE_AUTO_STOP_SECONDS, 30 * 60)
 
     def test_direct_transaction_is_one_captured_action_and_ack3(self) -> None:
         frame = bytes.fromhex("3305321894530005c2")

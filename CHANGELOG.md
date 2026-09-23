@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.7
+
+- Send one acknowledged **Massage Stop** at integration startup to establish
+  the requested level-zero baseline before enabling massage controls.
+- Keep massage controls unavailable when Stop is unconfirmed instead of
+  presenting an actionable unknown intensity.
+- Add a transparent **Massage Safety State** sensor.
+- Reset a 30-minute safety timer after acknowledged HA-issued active massage;
+  expiry sends one serialized Massage Stop.
+- Keep Stop one-shot after a missing `ACK3`; the integration never claims a
+  stopped state without acknowledgement.
+
 ## 0.1.5
 
 - Reopen the capture-backed controller session before the next explicit action

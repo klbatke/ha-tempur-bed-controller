@@ -22,6 +22,9 @@ SESSION_IDLE_REOPEN_SECONDS = 120.0
 # User-initiated repeated actions are serialized with this post-ACK holdoff.
 # It is an integration safety cadence, not a claimed wire-protocol delay.
 REPEATED_ACTION_INTERVAL_SECONDS = 0.500
+# The controller has no validated massage-state readback.  Acknowledged
+# Home Assistant massage activity is stopped after this bounded interval.
+MASSAGE_AUTO_STOP_SECONDS = 30 * 60
 
 
 def session_open_datagram() -> bytes:
