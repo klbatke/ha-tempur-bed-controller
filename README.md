@@ -18,23 +18,25 @@ Developed with assistance from ChatGPT (OpenAI Codex).
 - Last-requested head and leg lift actions. These are deliberately not lift
   positions.
 
-## Protocol safety in v0.1.4
+## Protocol safety in v0.1.5
 
 This release performs the captured `FELOGICDATAOPEN` session initialization once
-per Home Assistant transport session, waits for `ACKFE`, and then sends one
-captured nine-byte controller action followed by its `ACK3` response. The
-session opener is not repeated before every action. A failed action invalidates
-the session for the next explicit action, but the integration does not blindly
-retry the failed command. After `ACKFE`, the integration waits 10 ms before the
-first direct action. The supplied iPad captures showed 4.6–7.0 ms in that
-position; the small margin addresses the observed first-action failure without
-inventing a 500 ms protocol delay.
+per live controller session, waits for `ACKFE`, and then sends one captured
+nine-byte controller action followed by its `ACK3` response. A session is
+proactively reopened after 120 seconds without an acknowledged physical action.
+The opener is non-moving; it must receive `ACKFE` before the requested action
+is sent. A failed action still invalidates the session but is never resent
+automatically.
 
-The 500 ms value is not used as a wire-protocol delay. The captures show the
-iPad's repeated action frames at a much shorter, variable interval, and do not
-validate a universal 500 ms cadence. Actions remain one-shot; exact massage
-levels are selected by the number entities, while More/Less moves one requested
-level at a time.
+After each acknowledged physical action, the integration holds its Home
+Assistant action queue for 500 ms before allowing the next explicit command.
+This is an integration-level safety cadence for rapid user presses and
+automations, not a claim about a fixed controller wire-protocol delay. Every
+explicit press remains a one-shot action; no repeat packet is invented. Exact
+massage levels are selected by the number entities, while More/Less moves one
+requested level at a time. After `ACKFE`, the integration continues to wait
+10 ms before the first direct action; supplied iPad captures showed 4.6–7.0 ms
+in that position.
 If the bed controller is rebooted while Home Assistant remains running, use the
 diagnostic **Reconnect Controller** button before sending another action. It
 only performs the capture-backed session opener and waits for `ACKFE`; it does

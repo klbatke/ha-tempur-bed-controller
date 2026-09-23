@@ -9,13 +9,27 @@ OPEN_FRAME = bytes.fromhex("FE4C4F474943444154414F50454E")
 OPEN_ACK = b"ACK\xfe"
 ACTION_FRAME_LENGTH = 9
 # The iPad traces show 4.6-7.0 ms between ACKFE and the first action.
-# This is separate from the 500 ms interval between repeated button presses.
 SESSION_ACTION_SETTLE_SECONDS = 0.010
+# A controller session acknowledged a command after 170 seconds of inactivity,
+# but did not acknowledge after 206 seconds. Reopen conservatively before the
+# next explicit action after two idle minutes.
+SESSION_IDLE_REOPEN_SECONDS = 120.0
+# User-initiated repeated actions are serialized with this post-ACK holdoff.
+# It is an integration safety cadence, not a claimed wire-protocol delay.
+REPEATED_ACTION_INTERVAL_SECONDS = 0.500
 
 
 def session_open_datagram() -> bytes:
     """Return the captured LogicData session-open datagram."""
     return OPEN_FRAME
+
+
+def session_requires_reopen(last_action_ack: float | None, now: float) -> bool:
+    """Return whether an idle controller session should be reopened."""
+    return (
+        last_action_ack is not None
+        and now - last_action_ack >= SESSION_IDLE_REOPEN_SECONDS
+    )
 
 
 def acknowledgement_matches(response: bytes, expected: bytes) -> bool:

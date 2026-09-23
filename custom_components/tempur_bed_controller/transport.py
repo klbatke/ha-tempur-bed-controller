@@ -16,6 +16,8 @@ from .transaction import (
     acknowledgement_matches,
     controller_source_matches,
     direct_action_datagrams,
+    REPEATED_ACTION_INTERVAL_SECONDS,
+    session_requires_reopen,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,6 +55,7 @@ class ControllerTransport:
         self._transport: asyncio.DatagramTransport | None = None
         self._lock = asyncio.Lock()
         self._session_open = False
+        self._last_action_ack_monotonic: float | None = None
 
     async def async_setup(self) -> None:
         """Create the local UDP endpoint without issuing a controller command."""
@@ -68,9 +71,10 @@ class ControllerTransport:
         """Close the local UDP endpoint."""
         if self._transport is not None:
             self._transport.close()
-            self._transport = None
-            self._protocol = None
+        self._transport = None
+        self._protocol = None
         self._session_open = False
+        self._last_action_ack_monotonic = None
 
     async def async_send_action(self, frame: bytes, action_name: str) -> None:
         """Open one controller session, then send one captured direct action.
@@ -79,8 +83,9 @@ class ControllerTransport:
         before later direct actions. The opener is sent once per HA transport
         lifetime, never before every action. The captured iPad interval from
         ``ACKFE`` to the first action was 4.6-7.0 ms, so this integration waits
-        10 ms. This is separate from the 500 ms interval between repeated
-        button presses and does not synthesize repeats.
+        10 ms. After every acknowledged physical action, Home Assistant holds
+        its action queue for 500 ms before allowing the next explicit action.
+        This does not synthesize repeats.
         """
         if self._transport is None or self._protocol is None:
             raise ControllerTimeoutError("Controller transport is not initialized")
@@ -90,6 +95,17 @@ class ControllerTransport:
                 datagrams = direct_action_datagrams(frame)
             except ValueError as err:
                 raise ControllerTimeoutError(str(err)) from err
+            loop = asyncio.get_running_loop()
+            last_action_ack = self._last_action_ack_monotonic
+            if self._session_open and session_requires_reopen(last_action_ack, loop.time()):
+                assert last_action_ack is not None
+                _LOGGER.debug(
+                    "Controller session idle for %.1f seconds; reopening before action=%s",
+                    loop.time() - last_action_ack,
+                    action_name,
+                )
+                self._session_open = False
+                self._last_action_ack_monotonic = None
             if not self._session_open:
                 await self._async_open_session()
             for datagram in datagrams:
@@ -97,13 +113,23 @@ class ControllerTransport:
                     await self._async_send_and_wait(datagram, ACK_ACTION, action_name)
                 except ControllerTimeoutError:
                     self._session_open = False
+                    self._last_action_ack_monotonic = None
                     raise
+                self._last_action_ack_monotonic = loop.time()
+                _LOGGER.debug(
+                    "Controller action=%s acknowledged; holding queue for %.0f ms",
+                    action_name,
+                    REPEATED_ACTION_INTERVAL_SECONDS * 1000,
+                )
+                await asyncio.sleep(REPEATED_ACTION_INTERVAL_SECONDS)
+
     async def async_reinitialize_session(self) -> None:
         """Safely re-open the controller session without sending a bed action."""
         if self._transport is None or self._protocol is None:
             raise ControllerTimeoutError("Controller transport is not initialized")
         async with self._lock:
             self._session_open = False
+            self._last_action_ack_monotonic = None
             self._drain_messages()
             await self._async_open_session()
 

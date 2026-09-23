@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.5
+
+- Reopen the capture-backed controller session before the next explicit action
+  after 120 seconds of controller inactivity. The opener must receive `ACKFE`
+  before the requested action is sent.
+- Hold the Home Assistant physical-action queue for 500 ms after each `ACK3`.
+  This preserves every explicit button press without inventing repeat packets.
+- Add regression coverage for the idle-session threshold and post-ACK holdoff.
+
 ## 0.1.4
 
 - Add a diagnostic **Reconnect Controller** button that reinitializes the

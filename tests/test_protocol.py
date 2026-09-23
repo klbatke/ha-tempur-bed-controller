@@ -25,6 +25,9 @@ acknowledgement_matches = TRANSACTION["acknowledgement_matches"]
 controller_source_matches = TRANSACTION["controller_source_matches"]
 direct_action_datagrams = TRANSACTION["direct_action_datagrams"]
 SESSION_ACTION_SETTLE_SECONDS = TRANSACTION["SESSION_ACTION_SETTLE_SECONDS"]
+SESSION_IDLE_REOPEN_SECONDS = TRANSACTION["SESSION_IDLE_REOPEN_SECONDS"]
+REPEATED_ACTION_INTERVAL_SECONDS = TRANSACTION["REPEATED_ACTION_INTERVAL_SECONDS"]
+session_requires_reopen = TRANSACTION["session_requires_reopen"]
 
 
 def massage_level_frame(zone: str, level: int) -> bytes:
@@ -44,6 +47,15 @@ class TestMassageProtocol(unittest.TestCase):
     def test_session_settle_interval_is_short_and_capture_derived(self) -> None:
         self.assertGreaterEqual(SESSION_ACTION_SETTLE_SECONDS, 0.005)
         self.assertLess(SESSION_ACTION_SETTLE_SECONDS, 0.050)
+
+    def test_idle_session_reopens_before_observed_timeout_window(self) -> None:
+        self.assertEqual(SESSION_IDLE_REOPEN_SECONDS, 120.0)
+        self.assertFalse(session_requires_reopen(None, 500.0))
+        self.assertFalse(session_requires_reopen(100.0, 219.9))
+        self.assertTrue(session_requires_reopen(100.0, 220.0))
+
+    def test_repeated_action_interval_is_a_half_second_post_ack_holdoff(self) -> None:
+        self.assertEqual(REPEATED_ACTION_INTERVAL_SECONDS, 0.500)
 
     def test_direct_transaction_is_one_captured_action_and_ack3(self) -> None:
         frame = bytes.fromhex("3305321894530005c2")
