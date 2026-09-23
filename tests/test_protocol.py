@@ -27,6 +27,8 @@ direct_action_datagrams = TRANSACTION["direct_action_datagrams"]
 SESSION_ACTION_SETTLE_SECONDS = TRANSACTION["SESSION_ACTION_SETTLE_SECONDS"]
 SESSION_IDLE_REOPEN_SECONDS = TRANSACTION["SESSION_IDLE_REOPEN_SECONDS"]
 REPEATED_ACTION_INTERVAL_SECONDS = TRANSACTION["REPEATED_ACTION_INTERVAL_SECONDS"]
+SESSION_OPEN_MAX_ATTEMPTS = TRANSACTION["SESSION_OPEN_MAX_ATTEMPTS"]
+session_open_retry_delay = TRANSACTION["session_open_retry_delay"]
 session_requires_reopen = TRANSACTION["session_requires_reopen"]
 
 
@@ -47,6 +49,13 @@ class TestMassageProtocol(unittest.TestCase):
     def test_session_settle_interval_is_short_and_capture_derived(self) -> None:
         self.assertGreaterEqual(SESSION_ACTION_SETTLE_SECONDS, 0.005)
         self.assertLess(SESSION_ACTION_SETTLE_SECONDS, 0.050)
+
+    def test_session_open_retry_policy_is_bounded_and_non_physical(self) -> None:
+        self.assertEqual(SESSION_OPEN_MAX_ATTEMPTS, 3)
+        self.assertEqual(session_open_retry_delay(1), 1.0)
+        self.assertEqual(session_open_retry_delay(2), 2.0)
+        with self.assertRaises(ValueError):
+            session_open_retry_delay(0)
 
     def test_idle_session_reopens_before_observed_timeout_window(self) -> None:
         self.assertEqual(SESSION_IDLE_REOPEN_SECONDS, 120.0)

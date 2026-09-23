@@ -18,15 +18,17 @@ Developed with assistance from ChatGPT (OpenAI Codex).
 - Last-requested head and leg lift actions. These are deliberately not lift
   positions.
 
-## Protocol safety in v0.1.5
+## Protocol safety in v0.1.6
 
 This release performs the captured `FELOGICDATAOPEN` session initialization once
 per live controller session, waits for `ACKFE`, and then sends one captured
 nine-byte controller action followed by its `ACK3` response. A session is
 proactively reopened after 120 seconds without an acknowledged physical action.
 The opener is non-moving; it must receive `ACKFE` before the requested action
-is sent. A failed action still invalidates the session but is never resent
-automatically.
+is sent. If an opener does not receive `ACKFE`, the integration retries only
+that non-moving opener, at most three times with a one-second then two-second
+backoff. A failed physical action still invalidates the session but is never
+resent automatically: a missing `ACK3` cannot prove that the bed did not act.
 
 After each acknowledged physical action, the integration holds its Home
 Assistant action queue for 500 ms before allowing the next explicit command.
@@ -36,7 +38,9 @@ explicit press remains a one-shot action; no repeat packet is invented. Exact
 massage levels are selected by the number entities, while More/Less moves one
 requested level at a time. After `ACKFE`, the integration continues to wait
 10 ms before the first direct action; supplied iPad captures showed 4.6–7.0 ms
-in that position.
+in that position. This timing remains pilot behavior under active validation;
+an opener acknowledgement alone does not prove that a physical action will be
+acknowledged.
 If the bed controller is rebooted while Home Assistant remains running, use the
 diagnostic **Reconnect Controller** button before sending another action. It
 only performs the capture-backed session opener and waits for `ACKFE`; it does

@@ -17,6 +17,8 @@ from .transaction import (
     controller_source_matches,
     direct_action_datagrams,
     REPEATED_ACTION_INTERVAL_SECONDS,
+    SESSION_OPEN_MAX_ATTEMPTS,
+    session_open_retry_delay,
     session_requires_reopen,
 )
 
@@ -134,9 +136,39 @@ class ControllerTransport:
             await self._async_open_session()
 
     async def _async_open_session(self) -> None:
-        """Send the one-shot opener and wait for its acknowledgement."""
+        """Open a controller session, retrying only the non-moving opener."""
         self._session_open = False
-        await self._async_send_and_wait(OPEN_FRAME, ACK_OPEN, "session_open")
+        for attempt in range(1, SESSION_OPEN_MAX_ATTEMPTS + 1):
+            self._drain_messages()
+            try:
+                await self._async_send_and_wait(
+                    OPEN_FRAME,
+                    ACK_OPEN,
+                    f"session_open_attempt_{attempt}",
+                )
+            except ControllerTimeoutError:
+                if attempt == SESSION_OPEN_MAX_ATTEMPTS:
+                    _LOGGER.warning(
+                        "Controller session opener failed after %d non-moving attempts",
+                        attempt,
+                    )
+                    raise
+                delay = session_open_retry_delay(attempt)
+                _LOGGER.warning(
+                    "Controller session opener attempt %d/%d timed out; retrying the "
+                    "non-moving opener in %.1f seconds",
+                    attempt,
+                    SESSION_OPEN_MAX_ATTEMPTS,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+            else:
+                _LOGGER.debug(
+                    "Controller session opener acknowledged on attempt %d/%d",
+                    attempt,
+                    SESSION_OPEN_MAX_ATTEMPTS,
+                )
+                break
         self._session_open = True
         _LOGGER.debug(
             "Controller session acknowledged; waiting %.1f ms before first action",

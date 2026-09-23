@@ -10,6 +10,11 @@ OPEN_ACK = b"ACK\xfe"
 ACTION_FRAME_LENGTH = 9
 # The iPad traces show 4.6-7.0 ms between ACKFE and the first action.
 SESSION_ACTION_SETTLE_SECONDS = 0.010
+# Session opening is non-moving. If its acknowledgement is absent, retry only
+# that opener with a bounded backoff. Physical actions are never retried:
+# an absent ACK3 cannot prove that the controller did not already act on it.
+SESSION_OPEN_MAX_ATTEMPTS = 3
+SESSION_OPEN_RETRY_INITIAL_DELAY_SECONDS = 1.0
 # A controller session acknowledged a command after 170 seconds of inactivity,
 # but did not acknowledge after 206 seconds. Reopen conservatively before the
 # next explicit action after two idle minutes.
@@ -30,6 +35,18 @@ def session_requires_reopen(last_action_ack: float | None, now: float) -> bool:
         last_action_ack is not None
         and now - last_action_ack >= SESSION_IDLE_REOPEN_SECONDS
     )
+
+
+def session_open_retry_delay(attempt: int) -> float:
+    """Return the delay before retrying a failed non-moving session opener.
+
+    ``attempt`` is the one-based attempt that just failed. The final attempt
+    is never retried by the caller, but this helper remains defined for every
+    positive attempt so the retry policy is deterministic and testable.
+    """
+    if attempt < 1:
+        raise ValueError("Session-open attempt must be at least one")
+    return SESSION_OPEN_RETRY_INITIAL_DELAY_SECONDS * (2 ** (attempt - 1))
 
 
 def acknowledgement_matches(response: bytes, expected: bytes) -> bool:
